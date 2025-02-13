@@ -6,12 +6,11 @@ function SearchComponent() {
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [searchType, setSearchType] = useState("word"); // Default: Exact Match
+  const [searchType, setSearchType] = useState("word");
+  const [showModal, setShowModal] = useState(null);
 
-  // API Base URL
   const API_BASE = "http://localhost:8080/api/search";
 
-  // Handle Search Request
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
 
@@ -25,185 +24,202 @@ function SearchComponent() {
       setResults(response.data);
     } catch (err) {
       setError("Failed to fetch results. Please try again.");
-      console.error("Error searching:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Index Rebuilding
-  const handleRebuildIndex = async () => {
+  const handleAction = async (action) => {
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await axios.post(`${API_BASE}/rebuild-index`);
-      alert(response.data);
+      let response;
+      switch (action) {
+        case "rebuild":
+          response = await axios.post(`${API_BASE}/rebuild-index`);
+          break;
+        case "deleteWord":
+          if (!searchTerm.trim()) return;
+          response = await axios.delete(
+            `${API_BASE}/delete/${encodeURIComponent(searchTerm)}`
+          );
+          break;
+        case "deleteIndex":
+          response = await axios.delete(`${API_BASE}/delete-index`);
+          break;
+      }
+      setShowModal({ type: "success", message: response.data });
     } catch (err) {
-      setError("Error rebuilding index.");
-      console.error("Error:", err);
+      setShowModal({
+        type: "error",
+        message: err.response?.data || "Operation failed",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle Deleting a Word from Index
-  const handleDeleteWord = async () => {
-    if (!searchTerm.trim()) return;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const response = await axios.delete(
-        `${API_BASE}/delete/${encodeURIComponent(searchTerm)}`
-      );
-      alert(response.data);
-    } catch (err) {
-      setError("Error deleting word.");
-      console.error("Error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Deleting Entire Index
-  const handleDeleteIndex = async () => {
-    if (!window.confirm("Are you sure you want to delete the entire index?"))
-      return;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const response = await axios.delete(`${API_BASE}/delete-index`);
-      alert(response.data);
-    } catch (err) {
-      setError("Error deleting index.");
-      console.error("Error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle Enter Key Press
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
+    if (e.key === "Enter") handleSearch();
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Search Input */}
-        <div className="relative">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter a word to search..."
-            className="w-full px-6 py-4 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-300 shadow-sm hover:shadow-md text-lg"
-            autoFocus
-          />
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Search Header */}
+        <div className="flex gap-4 items-start">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search term..."
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-gray-700"
+              autoFocus
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isLoading}
+              className={`absolute right-2 top-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors ${
+                isLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isLoading ? "..." : "Search"}
+            </button>
+          </div>
 
-          {/* Search Button */}
-          <button
-            onClick={handleSearch}
-            disabled={isLoading}
-            className={`absolute right-3 top-3 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-300 ${
-              isLoading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            {isLoading ? "Searching..." : "Search"}
-          </button>
-        </div>
-
-        {/* Search Type Selection */}
-        <div className="flex space-x-2">
-          <label className="font-semibold">Search Type:</label>
           <select
-            className="px-3 py-2 border rounded-lg"
             value={searchType}
             onChange={(e) => setSearchType(e.target.value)}
+            className="px-3 py-2 border rounded-lg text-sm text-gray-600 bg-white"
           >
-            <option value="word">Exact Match</option>
-            <option value="fuzzy">Fuzzy Search</option>
-            <option value="prefix">Prefix Search</option>
+            <option value="word">Exact</option>
+            <option value="fuzzy">Fuzzy</option>
+            <option value="prefix">Prefix</option>
           </select>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
+          <div className="text-sm text-red-600 px-4 py-2 border border-red-100 bg-red-50 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* Search Results */}
-        <div className="space-y-4">
+        {/* Results Section */}
+        <div className="space-y-3">
           {results.map((result, index) => (
             <div
               key={index}
-              className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border-l-4 border-blue-500"
+              className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-200 transition-colors"
             >
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                {result.word}
-              </h3>
-              <p className="text-gray-600 mb-3">
-                <span className="font-semibold text-blue-600">Metadata:</span>{" "}
-                {result.metadata}
-              </p>
-              <div className="mt-3">
-                <span className="font-semibold text-purple-600">
-                  Related Words:
-                </span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {result.relatedWords.map((word, wordIndex) => (
-                    <span
-                      key={wordIndex}
-                      className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium hover:bg-indigo-200 transition-colors duration-200"
-                    >
-                      {word}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex items-baseline gap-2 mb-2">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {result.word}
+                </h3>
+                <span className="text-sm text-gray-500">{result.metadata}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {result.relatedWords.map((word, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-sm hover:bg-gray-200 cursor-default transition-colors"
+                  >
+                    {word}
+                  </span>
+                ))}
               </div>
             </div>
           ))}
         </div>
 
-        {/* No Results */}
+        {/* Admin Actions */}
+        <div className="border-t pt-6 mt-6">
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() =>
+                setShowModal({
+                  type: "confirm",
+                  action: "rebuild",
+                  message: "Rebuild index?",
+                })
+              }
+              className="px-4 py-2 text-sm text-gray-600 bg-white border rounded-lg hover:bg-gray-50"
+            >
+              Rebuild
+            </button>
+            <button
+              onClick={() =>
+                setShowModal({
+                  type: "confirm",
+                  action: "deleteWord",
+                  message: `Delete "${searchTerm}"?`,
+                })
+              }
+              className="px-4 py-2 text-sm text-red-600 bg-white border rounded-lg hover:bg-red-50"
+            >
+              Delete Word
+            </button>
+            <button
+              onClick={() =>
+                setShowModal({
+                  type: "confirm",
+                  action: "deleteIndex",
+                  message: "Delete entire index?",
+                })
+              }
+              className="px-4 py-2 text-sm text-red-600 bg-white border rounded-lg hover:bg-red-50"
+            >
+              Delete All
+            </button>
+          </div>
+        </div>
+
+        {/* Empty State */}
         {!isLoading && results.length === 0 && searchTerm && !error && (
-          <div className="text-center py-8 text-gray-500">
-            No results found for "{searchTerm}"
+          <div className="text-center py-6 text-gray-400">
+            No results for "{searchTerm}"
           </div>
         )}
 
-        {/* Admin Actions */}
-        <div className="space-y-3">
-          <button
-            onClick={handleRebuildIndex}
-            className="w-full bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition duration-300"
-          >
-            Rebuild Index
-          </button>
+        {/* Modal Overlay */}
+        {showModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl p-6 max-w-sm w-full space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {showModal.type === "confirm"
+                  ? "Confirm Action"
+                  : showModal.type === "error"
+                  ? "Error"
+                  : "Success"}
+              </h3>
 
-          <button
-            onClick={handleDeleteWord}
-            className="w-full bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition duration-300"
-          >
-            Delete Word from Index
-          </button>
+              <p className="text-gray-600">{showModal.message}</p>
 
-          <button
-            onClick={handleDeleteIndex}
-            className="w-full bg-gray-700 text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300"
-          >
-            Delete Entire Index
-          </button>
-        </div>
+              <div className="flex justify-end gap-3">
+                {showModal.type === "confirm" && (
+                  <button
+                    onClick={() => {
+                      handleAction(showModal.action);
+                      setShowModal(null);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Confirm
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowModal(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  {showModal.type === "confirm" ? "Cancel" : "Close"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
