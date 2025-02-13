@@ -6,7 +6,12 @@ function SearchComponent() {
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [searchType, setSearchType] = useState("word"); // Default: Exact Match
 
+  // API Base URL
+  const API_BASE = "http://localhost:8080/api/search";
+
+  // Handle Search Request
   const handleSearch = async () => {
     if (!searchTerm.trim()) return;
 
@@ -15,9 +20,7 @@ function SearchComponent() {
 
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/search/word/${encodeURIComponent(
-          searchTerm
-        )}`
+        `${API_BASE}/${searchType}/${encodeURIComponent(searchTerm)}`
       );
       setResults(response.data);
     } catch (err) {
@@ -28,6 +31,62 @@ function SearchComponent() {
     }
   };
 
+  // Handle Index Rebuilding
+  const handleRebuildIndex = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.post(`${API_BASE}/rebuild-index`);
+      alert(response.data);
+    } catch (err) {
+      setError("Error rebuilding index.");
+      console.error("Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Deleting a Word from Index
+  const handleDeleteWord = async () => {
+    if (!searchTerm.trim()) return;
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.delete(
+        `${API_BASE}/delete/${encodeURIComponent(searchTerm)}`
+      );
+      alert(response.data);
+    } catch (err) {
+      setError("Error deleting word.");
+      console.error("Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Deleting Entire Index
+  const handleDeleteIndex = async () => {
+    if (!window.confirm("Are you sure you want to delete the entire index?"))
+      return;
+
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.delete(`${API_BASE}/delete-index`);
+      alert(response.data);
+    } catch (err) {
+      setError("Error deleting index.");
+      console.error("Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle Enter Key Press
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearch();
@@ -37,6 +96,7 @@ function SearchComponent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-12 px-4">
       <div className="max-w-2xl mx-auto space-y-8">
+        {/* Search Input */}
         <div className="relative">
           <input
             type="text"
@@ -47,6 +107,8 @@ function SearchComponent() {
             className="w-full px-6 py-4 rounded-lg border-2 border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-all duration-300 shadow-sm hover:shadow-md text-lg"
             autoFocus
           />
+
+          {/* Search Button */}
           <button
             onClick={handleSearch}
             disabled={isLoading}
@@ -54,53 +116,32 @@ function SearchComponent() {
               isLoading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
-            {isLoading ? (
-              <div className="flex items-center">
-                <svg
-                  className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  ></circle>
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-                Searching...
-              </div>
-            ) : (
-              "Search"
-            )}
+            {isLoading ? "Searching..." : "Search"}
           </button>
         </div>
 
+        {/* Search Type Selection */}
+        <div className="flex space-x-2">
+          <label className="font-semibold">Search Type:</label>
+          <select
+            className="px-3 py-2 border rounded-lg"
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+          >
+            <option value="word">Exact Match</option>
+            <option value="fuzzy">Fuzzy Search</option>
+            <option value="prefix">Prefix Search</option>
+          </select>
+        </div>
+
+        {/* Error Message */}
         {error && (
           <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center">
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
             {error}
           </div>
         )}
 
+        {/* Search Results */}
         <div className="space-y-4">
           {results.map((result, index) => (
             <div
@@ -133,11 +174,36 @@ function SearchComponent() {
           ))}
         </div>
 
+        {/* No Results */}
         {!isLoading && results.length === 0 && searchTerm && !error && (
           <div className="text-center py-8 text-gray-500">
             No results found for "{searchTerm}"
           </div>
         )}
+
+        {/* Admin Actions */}
+        <div className="space-y-3">
+          <button
+            onClick={handleRebuildIndex}
+            className="w-full bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition duration-300"
+          >
+            Rebuild Index
+          </button>
+
+          <button
+            onClick={handleDeleteWord}
+            className="w-full bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition duration-300"
+          >
+            Delete Word from Index
+          </button>
+
+          <button
+            onClick={handleDeleteIndex}
+            className="w-full bg-gray-700 text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition duration-300"
+          >
+            Delete Entire Index
+          </button>
+        </div>
       </div>
     </div>
   );
