@@ -82,9 +82,8 @@ function SearchComponent() {
             <button
               onClick={handleSearch}
               disabled={isLoading}
-              className={`absolute right-2 top-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors ${
-                isLoading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`absolute right-2 top-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors ${isLoading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               {isLoading ? "..." : "Search"}
             </button>
@@ -192,8 +191,8 @@ function SearchComponent() {
                 {showModal.type === "confirm"
                   ? "Confirm Action"
                   : showModal.type === "error"
-                  ? "Error"
-                  : "Success"}
+                    ? "Error"
+                    : "Success"}
               </h3>
 
               <p className="text-gray-600">{showModal.message}</p>
